@@ -1,6 +1,6 @@
 import socket
 import struct
-from util import PacketType, HeaderData
+from util import PacketType, HeaderData, BUFFER_SIZE
 from typing import Dict, Any, Tuple
 
 class ProtocolSocketBase:
@@ -14,11 +14,11 @@ class ProtocolSocketBase:
             self, packet_type: PacketType, prod_id: bytes, stream: int, frame: int
     ) -> bytearray:
         header = bytearray()
-        header.append(struct.pack('B', packet_type)) # 'B' = 1 byte
+        header.extend(struct.pack('B', packet_type.value)) # 'B' = 1 byte
         assert(len(prod_id) == 3) # must be 3 bytes
         header.extend(bytearray(prod_id))
-        header.append(struct.pack('B', stream))
-        header.append(struct.pack('B', frame))
+        header.extend(struct.pack('B', stream))
+        header.extend(struct.pack('i', frame)) # 'i' = signed integer (4 bytes)
 
         return header
 
@@ -37,6 +37,15 @@ class ProtocolSocketBase:
 
         self.UDPSocket.sendto(data, (target_ip, target_port))
 
-    def _receive(self, buffer_size: int) -> Tuple[bytes, str]:
+    def _receive(self, buffer_size: int = BUFFER_SIZE) -> Tuple[bytes, str]:
         msg, addr = self.UDPSocket.recvfrom(buffer_size)
         return (msg, addr)
+
+    def _parse_packet(self, payload: bytes) -> Dict[str, Any]:
+        return {
+            "packet_type": payload[0],
+            "producer_id": bytes(payload[1:4]), # bytes, need to do .hex() to get str
+            "stream": payload[4],
+            "frame": payload[5],
+            "payload": bytes(payload[6:])
+        }
