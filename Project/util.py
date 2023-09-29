@@ -3,7 +3,6 @@ from enum import Enum, auto
 
 # Constants
 BROKER_IP   = "test-broker"
-BROKER_PORT = 50000
 BUFFER_SIZE = 1024 # not sure if should change this or not
 
 
