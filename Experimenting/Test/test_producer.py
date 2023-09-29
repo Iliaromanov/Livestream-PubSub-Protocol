@@ -14,7 +14,7 @@ UDPProducerSocket.bind((LOCAL_IP, LOCAL_PORT))
 print("Producer setup complete. Sending Message.")
 
 while True:
-    msg = input()
+    msg = "PROD: " + input()
     msg_byte = str.encode(msg)
 
     UDPProducerSocket.sendto(msg_byte, (BROKER_IP, BROKER_PORT))
