@@ -27,18 +27,18 @@ class Broker(ProtocolSocketBase):
 
             if packet_type == PacketType.ANNOUNCE_STREAM.value:
                 self.publish_stream(prod_id, stream_id)
-            elif packet_type == PacketType.PRODUCE_FRAME.value:
-                self.send_frame_to_subs(prod_id, stream_id, frame_id, body)
             elif packet_type == PacketType.SUB_STREAM:
-                self.sub_to_stream(addr[0], stream_id)
-            elif packet_type == PacketType.UNSUB_STREAM:
-                self.unsub_from_stream(addr[0], stream_id)
-            elif packet_type == PacketType.SUB_PRODUCER:
-                self.sub_to_prod(addr[0], prod_id)
-            elif packet_type == PacketType.UNSUB_PRODUCER:
-                self.unsub_from_prod(addr[0], prod_id)
+                self.sub_to_stream(addr[0], prod_id, stream_id)
             else:
                 raise Exception(f"Invalid packet type received by broker - {packet_type}")
+            # elif packet_type == PacketType.PRODUCE_FRAME.value:
+            #     self.send_frame_to_subs(prod_id, stream_id, frame_id, body)
+            # elif packet_type == PacketType.UNSUB_STREAM:
+            #     self.unsub_from_stream(addr[0], stream_id)
+            # elif packet_type == PacketType.SUB_PRODUCER:
+            #     self.sub_to_prod(addr[0], prod_id)
+            # elif packet_type == PacketType.UNSUB_PRODUCER:
+            #     self.unsub_from_prod(addr[0], prod_id)
 
     def publish_stream(self, prod_id: str, stream_id: str, prod_ip: str) -> None:
         topic_id = f"{prod_id}{stream_id}"
@@ -65,8 +65,32 @@ class Broker(ProtocolSocketBase):
             HeaderData.PRODUCER_ID: prod_id,
             HeaderData.STREAM: stream_id
         }
-        msg = bytearray(f"ACK - Broker published stream {stream_id}".encode())
+        msg = bytearray(f"ACK: Broker published stream {stream_id}".encode())
         self._send(header, msg, prod_ip, PRODUCER_PORT)
+        
+        print("Publish finished - ", topic_id)
+
+    def sub_to_stream(self, cons_id: str, prod_id: str, stream_id: str) -> None:
+        print(f"Sub request from '{cons_id}' to producer '{prod_id}', stream '{stream_id}")
+        topic_id = f"{prod_id}{stream_id}"
+        if topic_id not in self.topic_info:
+            print(f"WARNING: TOPIC {topic_id} DOES NOT EXIST. SUB REQUEST FAIL.")
+
+        self.topic_info[topic_id][Labels.SUBS].add(cons_id)
+
+        highest_published_frame = self.topic_info[topic_id][Labels.FRAME_COUNT]
+
+        header = {
+            HeaderData.PACKET_TYPE: PacketType.SUB_STREAM_ACK.value,
+            HeaderData.PRODUCER_ID: prod_id,
+            HeaderData.STREAM: stream_id,
+            HeaderData.FRAME: highest_published_frame # use this to set the max_frame for stream in consumer
+        }
+        msg = bytearray(f"ACK: Broker registered sub to topic {topic_id}".encode())
+        self._send(header, msg, cons_id, CONSUMER_PORT)
+        
+        print("Sub request completed - ", topic_id)
+
 
     def send_frame_to_subs(
             self, prod_id: str, stream_id: str,
@@ -81,14 +105,13 @@ class Broker(ProtocolSocketBase):
             # will need to use CONSUMER_PORT
             pass
 
-    def sub_to_stream(self, cons_id: str, stream_id: str) -> None:
-        pass
-
     def sub_to_prod(self, cons_id: str, prod_id: str) -> None:
         pass
 
-    def unsub_from_stream(self, cons_id: str, stream_id: str) -> None:
-        pass
+    def unsub_from_stream(
+            self, cons_id: str, prod_id: str, stream_id: str
+    ) -> None:
+        topic_id = f"{prod_id}{stream_id}"
 
     def unsub_from_prod(self, cons_id: str, prod_id: str) -> None:
         pass 

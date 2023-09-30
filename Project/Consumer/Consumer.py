@@ -5,7 +5,7 @@ from util import *
 
 class Consumer(ProtocolSocketBase):
     def __init__(self, local_ip: str = "consumer0") -> None:
-        super().__init__(local_ip, 50000)
+        super().__init__(local_ip, CONSUMER_PORT)
         self.subscribed_to: Dict[str, int] = {}
         
         print(f"Consumer - [{local_ip}] - setup complete. Waiting for requests to subscribe ...")

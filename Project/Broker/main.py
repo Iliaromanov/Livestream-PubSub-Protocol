@@ -1,5 +1,8 @@
+from Broker import Broker
+
 def main():
-    pass
+    broker = Broker()
+    broker.listen()
 
 
 
