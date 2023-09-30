@@ -1,5 +1,5 @@
 from typing import Dict, Set, Any
-from ProtocolSocketBase import ProtocolSocketBase
+from ..ProtocolSocketBase import ProtocolSocketBase
 
 from util import *
 
