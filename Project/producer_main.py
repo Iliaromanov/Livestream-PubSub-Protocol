@@ -17,7 +17,7 @@ def main():
             prod.publish_new_stream(sid)
         elif cmd[0] == Commands.STREAM.value:
             pass
-        elif cmd[0] == Commands.EXIT:
+        elif cmd[0] == Commands.EXIT.value:
             exit()
         else:
             print("Invalid Command")

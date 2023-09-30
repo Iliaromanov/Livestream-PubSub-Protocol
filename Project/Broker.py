@@ -26,8 +26,8 @@ class Broker(ProtocolSocketBase):
             body = result[Labels.BODY]
 
             if packet_type == PacketType.ANNOUNCE_STREAM.value:
-                self.publish_stream(prod_id, stream_id)
-            elif packet_type == PacketType.SUB_STREAM:
+                self.publish_stream(prod_id, stream_id, addr[0])
+            elif packet_type == PacketType.SUB_STREAM.value:
                 self.sub_to_stream(addr[0], prod_id, stream_id)
             else:
                 raise Exception(f"Invalid packet type received by broker - {packet_type}")
@@ -61,7 +61,7 @@ class Broker(ProtocolSocketBase):
 
         # send an ACK
         header = {
-            HeaderData.PACKET_TYPE: PacketType.ANNOUNCE_STREAM_ACK.value,
+            HeaderData.PACKET_TYPE: PacketType.ANNOUNCE_STREAM_ACK,
             HeaderData.PRODUCER_ID: prod_id,
             HeaderData.STREAM: stream_id
         }
@@ -84,7 +84,7 @@ class Broker(ProtocolSocketBase):
         highest_published_frame = self.topic_info[topic_id][Labels.FRAME_COUNT]
 
         header = {
-            HeaderData.PACKET_TYPE: PacketType.SUB_STREAM_ACK.value,
+            HeaderData.PACKET_TYPE: PacketType.SUB_STREAM_ACK,
             HeaderData.PRODUCER_ID: prod_id,
             HeaderData.STREAM: stream_id,
             HeaderData.FRAME: highest_published_frame # use this to set the max_frame for stream in consumer
