@@ -2,8 +2,11 @@ from enum import Enum, auto
 
 
 # Constants
-BROKER_IP   = "test-broker"
-BUFFER_SIZE = 1024 # not sure if should change this or not
+BROKER_IP     = "broker"
+BROKER_PORT   = 50000
+PRODUCER_PORT = 50000
+CONSUMER_PORT = 50000
+BUFFER_SIZE   = 1024 # not sure if should change this or not
 
 
 class PacketType(Enum):
@@ -18,8 +21,16 @@ class PacketType(Enum):
     SUB_PRODUCER_ACK    = 8
     SEND_FRAME          = 9
 
+
 class HeaderData(Enum):
     PACKET_TYPE = auto()
     PRODUCER_ID = auto()
     STREAM      = auto()
     FRAME       = auto()
+
+
+class Commands(Enum):
+    PUB    = "pub"
+    STREAM = "stream"
+    SUB    = "sub"
+    UNSUB  = "unsub"
