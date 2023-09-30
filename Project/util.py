@@ -19,7 +19,9 @@ class PacketType(Enum):
     UNSUB_STREAM_ACK    = 6
     SUB_PRODUCER        = 7
     SUB_PRODUCER_ACK    = 8
-    SEND_FRAME          = 9
+    UNSUB_PRODUCER      = 9
+    UNSUB_PRODUCER_ACK  = 10
+    SEND_FRAME          = 11
 
 
 class HeaderData(Enum):
@@ -34,3 +36,13 @@ class Commands(Enum):
     STREAM = "stream"
     SUB    = "sub"
     UNSUB  = "unsub"
+
+
+class Labels(Enum):
+    PACKET_TYPE = "packet_type"
+    PRODUCER_ID = "producer_id"
+    STREAM_ID   = "stream_id"
+    FRAME_ID    = "frame_id"
+    BODY        = "body"
+    SUBS        = "subs"
+    FRAME_COUNT = "frame_count"
