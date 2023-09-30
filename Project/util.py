@@ -2,11 +2,12 @@ from enum import Enum, auto
 
 
 # Constants
-BROKER_IP     = "broker"
-BROKER_PORT   = 50000
-PRODUCER_PORT = 50000
-CONSUMER_PORT = 50000
-BUFFER_SIZE   = 1024 # not sure if should change this or not
+BROKER_IP       = "broker"
+BROKER_PORT     = 50000
+PRODUCER_PORT   = 50000
+CONSUMER_PORT   = 50000
+DEFAULT_PROD_ID = '000000'
+BUFFER_SIZE     = 1024 # not sure if should change this or not
 
 
 class PacketType(Enum):
@@ -36,13 +37,17 @@ class Commands(Enum):
     STREAM = "stream"
     SUB    = "sub"
     UNSUB  = "unsub"
+    EXIT   = "exit"
 
 
 class Labels(Enum):
+    # for unpacking header dict
     PACKET_TYPE = "packet_type"
     PRODUCER_ID = "producer_id"
     STREAM_ID   = "stream_id"
     FRAME_ID    = "frame_id"
     BODY        = "body"
+
+    # for Broker dict keys
     SUBS        = "subs"
     FRAME_COUNT = "frame_count"

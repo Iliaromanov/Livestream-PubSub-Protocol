@@ -7,16 +7,20 @@ def main():
     print("cmd:")
     print(f"- {Commands.PUB.value} [sid] - publish stream with id sid")
     print(f"- {Commands.STREAM.value} [path] - stream frames located at path")
+    print("- exit - end program")
     
     while True:
-        cmd = input(f"Producer - {prod.prod_id} - waiting on input ...\n").split()
+        cmd = input(f"Producer - {prod.prod_id} - waiting on input ...\n> ").split()
 
         if cmd[0] == Commands.PUB.value:
             sid = cmd[1]
-            print("Publishing stream {sid}.")
             prod.publish_new_stream(sid)
         elif cmd[0] == Commands.STREAM.value:
             pass
+        elif cmd[0] == Commands.EXIT:
+            exit()
+        else:
+            print("Invalid Command")
 
 
 

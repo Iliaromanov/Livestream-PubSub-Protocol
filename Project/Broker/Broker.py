@@ -66,7 +66,10 @@ class Broker(ProtocolSocketBase):
             HeaderData.STREAM: stream_id
         }
         msg = bytearray(f"ACK: Broker published stream {stream_id}".encode())
-        self._send(header, msg, prod_ip, PRODUCER_PORT)
+        self._send(
+            header_data=header, payload=msg,
+            target_ip=prod_ip, target_port=PRODUCER_PORT
+        )
         
         print("Publish finished - ", topic_id)
 
@@ -87,7 +90,10 @@ class Broker(ProtocolSocketBase):
             HeaderData.FRAME: highest_published_frame # use this to set the max_frame for stream in consumer
         }
         msg = bytearray(f"ACK: Broker registered sub to topic {topic_id}".encode())
-        self._send(header, msg, cons_id, CONSUMER_PORT)
+        self._send(
+            header_data=header, payload=msg, 
+            target_ip=cons_id, target_port=CONSUMER_PORT
+        )
         
         print("Sub request completed - ", topic_id)
 
