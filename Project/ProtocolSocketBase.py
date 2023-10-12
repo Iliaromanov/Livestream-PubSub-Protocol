@@ -11,7 +11,7 @@ class ProtocolSocketBase:
         self.UDPSocket.bind((self._local_ip, self._local_port))
 
     def _create_header(
-            self, packet_type: PacketType, prod_id: str, stream_id: int, frame_id: int
+            self, packet_type: PacketType, prod_id: str, stream_id: int, frame_id: int, text_id: int
     ) -> bytearray:
         stream_id = int(stream_id) # ensure its int
 
@@ -22,6 +22,7 @@ class ProtocolSocketBase:
         header.extend(bytearray(prod_id_byte))
         header.extend(struct.pack('B', stream_id)) # single producer can have at most 2^8 simultaneous streams
         header.extend(struct.pack('i', frame_id)) # 'i' = signed integer (4 bytes)
+        header.extend(struct.pack('i', text_id))
 
         return header
 
@@ -34,7 +35,8 @@ class ProtocolSocketBase:
             header_data.get(HeaderData.PACKET_TYPE),
             header_data.get(HeaderData.PRODUCER_ID, DEFAULT_PROD_ID),
             header_data.get(HeaderData.STREAM, 0),
-            header_data.get(HeaderData.FRAME, 0)
+            header_data.get(HeaderData.FRAME, 0),
+            header_data.get(HeaderData.TEXT, 0)
         )
         data = header + payload
 
@@ -48,10 +50,18 @@ class ProtocolSocketBase:
         return (self._parse_packet(msg), addr)
 
     def _parse_packet(self, payload: bytes) -> Dict[str, Any]:
+        # for frames, we keep body as bytes, 
+        #  for everything else, we assume text was sent and decode it
+        packet_type = payload[0]
+        body = bytes(payload[13:])
+        if packet_type != PacketType.SEND_FRAME:
+            body = body.decode()
+
         return {
-            Labels.PACKET_TYPE: payload[0],
+            Labels.PACKET_TYPE: packet_type,
             Labels.PRODUCER_ID: bytes(payload[1:4]).hex(),
             Labels.STREAM_ID: payload[4],
-            Labels.FRAME_ID: payload[5],
-            Labels.BODY: bytes(payload[6:]).decode()
+            Labels.FRAME_ID: struct.unpack('i', payload[5:9]),
+            Labels.TEXT_ID: struct.unpack('i', payload[9:13]),
+            Labels.BODY: body
         }

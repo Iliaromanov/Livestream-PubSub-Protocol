@@ -1,5 +1,5 @@
 from enum import Enum, auto
-
+import os
 
 # Constants
 BROKER_IP       = "broker"
@@ -10,19 +10,34 @@ DEFAULT_PROD_ID = '000000'
 BUFFER_SIZE     = 1024 # not sure if should change this or not
 
 
+def file_to_bytes(path: str) -> bytearray:
+    with open(path, 'rb') as img_file:
+        return bytearray(img_file.read())
+    
+def text_file_to_bytes(path: str) -> bytearray:
+    with open(path, 'r') as text_file:
+        text = text_file.read()
+        return bytearray(text.encode())
+
+    
+def bytes_to_frame(frame_bytes: bytearray, topic_id: str) -> None:
+    # saves to a file locally????
+    pass
+
+
 class PacketType(Enum):
     ANNOUNCE_STREAM     = 0
     ANNOUNCE_STREAM_ACK = 1
-    PRODUCE_FRAME       = 2
-    SUB_STREAM          = 3 
-    SUB_STREAM_ACK      = 4
-    UNSUB_STREAM        = 5
-    UNSUB_STREAM_ACK    = 6
-    SUB_PRODUCER        = 7
-    SUB_PRODUCER_ACK    = 8
-    UNSUB_PRODUCER      = 9
-    UNSUB_PRODUCER_ACK  = 10
-    SEND_FRAME          = 11
+    SEND_FRAME          = 2 # can be used for both prod send to broker, and broker send to cons
+    SEND_TEXT           = 3 # can be used for both prod send to broker, and broker send to cons
+    SUB_STREAM          = 4 
+    SUB_STREAM_ACK      = 5
+    UNSUB_STREAM        = 6
+    UNSUB_STREAM_ACK    = 7
+    SUB_PRODUCER        = 8
+    SUB_PRODUCER_ACK    = 9
+    UNSUB_PRODUCER      = 10
+    UNSUB_PRODUCER_ACK  = 11
 
 
 class HeaderData(Enum):
@@ -30,11 +45,12 @@ class HeaderData(Enum):
     PRODUCER_ID = auto()
     STREAM      = auto()
     FRAME       = auto()
+    TEXT        = auto()
 
 
 class Commands(Enum):
-    PUB    = "pub"
-    STREAM = "stream"
+    PUB    = "pub"    # announce new stream
+    STREAM = "stream" # send frame to broker
     SUB    = "sub"
     UNSUB  = "unsub"
     EXIT   = "exit"
@@ -46,8 +62,10 @@ class Labels(Enum):
     PRODUCER_ID = "producer_id"
     STREAM_ID   = "stream_id"
     FRAME_ID    = "frame_id"
+    TEXT_ID     = "text_id"
     BODY        = "body"
 
     # for Broker dict keys
     SUBS        = "subs"
     FRAME_COUNT = "frame_count"
+    TEXT_COUNT  = "text_count"
