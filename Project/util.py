@@ -28,8 +28,8 @@ def bytes_to_frame(frame_bytes: bytearray, topic_id: str) -> None:
 class PacketType(Enum):
     ANNOUNCE_STREAM     = 0
     ANNOUNCE_STREAM_ACK = 1
-    SEND_FRAME          = 2 # can be used for both prod send to broker, and broker send to cons
-    SEND_TEXT           = 3 # can be used for both prod send to broker, and broker send to cons
+    SEND_FRAME          = 2 # can be used for both prod -> broker, and broker -> cons
+    SEND_TEXT           = 3 # can be used for both prod -> broker, and broker -> cons
     SUB_STREAM          = 4 
     SUB_STREAM_ACK      = 5
     UNSUB_STREAM        = 6
