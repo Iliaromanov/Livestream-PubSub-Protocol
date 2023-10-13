@@ -53,7 +53,7 @@ class ProtocolSocketBase:
         # for frames, we keep body as bytes, 
         #  for everything else, we assume text was sent and decode it
         packet_type = payload[0]
-        body = bytes(payload[13:])
+        body = payload[13:]
         if packet_type != PacketType.SEND_FRAME:
             body = body.decode()
 
@@ -61,7 +61,7 @@ class ProtocolSocketBase:
             Labels.PACKET_TYPE: packet_type,
             Labels.PRODUCER_ID: bytes(payload[1:4]).hex(),
             Labels.STREAM_ID: payload[4],
-            Labels.FRAME_ID: struct.unpack('i', payload[5:9]),
-            Labels.TEXT_ID: struct.unpack('i', payload[9:13]),
+            Labels.FRAME_ID: struct.unpack('i', payload[5:9])[0],
+            Labels.TEXT_ID: struct.unpack('i', payload[9:13])[0],
             Labels.BODY: body
         }
