@@ -1,12 +1,17 @@
 from typing import Dict, Set, Any
-from ProtocolSocketBase import ProtocolSocketBase
 
+from ProtocolSocketBase import ProtocolSocketBase
 from util import *
 
 class Broker(ProtocolSocketBase):
     def __init__(self) -> None:
         super().__init__(BROKER_IP, BROKER_PORT)
-        # {topic_id: {"subs": set(consumer_ip), "frame_count": highest_frame_num}}
+        # {topic_id: {
+        #   "subs": set(consumer_ip), 
+        #   "frame_count": highest_frame_num, # * highest frame that broker received *
+        #   "text_count": highest_text_count} # * highest text that broker received *
+        #  (broker will do check for highest count for itself, then each consumer will do its own)
+        # }
         self.topic_info: Dict[str, Dict[str, Any]] = {}
         
         # {prod_id: set(consumer_ip)}
@@ -23,22 +28,25 @@ class Broker(ProtocolSocketBase):
             prod_id = result[Labels.PRODUCER_ID]
             stream_id = result[Labels.STREAM_ID]
             frame_id = result[Labels.FRAME_ID]
+            text_id = result[Labels.TEXT_ID]
             body = result[Labels.BODY]
 
             if packet_type == PacketType.ANNOUNCE_STREAM.value:
                 self.publish_stream(prod_id, stream_id, addr[0])
             elif packet_type == PacketType.SUB_STREAM.value:
                 self.sub_to_stream(addr[0], prod_id, stream_id)
-            else:
-                raise Exception(f"Invalid packet type received by broker - {packet_type}")
-            # elif packet_type == PacketType.PRODUCE_FRAME.value:
-            #     self.send_frame_to_subs(prod_id, stream_id, frame_id, body)
-            # elif packet_type == PacketType.UNSUB_STREAM:
-            #     self.unsub_from_stream(addr[0], stream_id)
+            elif packet_type == PacketType.SEND_FRAME.value:
+                self.send_content_to_subs(prod_id, stream_id, frame_id, body, True)
+            elif packet_type == PacketType.SEND_TEXT.value:
+                self.send_content_to_subs(prod_id, stream_id, text_id, body, False)
+            elif packet_type == PacketType.UNSUB_STREAM:
+                self.unsub_from_stream(addr[0], prod_id, stream_id)
             # elif packet_type == PacketType.SUB_PRODUCER:
             #     self.sub_to_prod(addr[0], prod_id)
             # elif packet_type == PacketType.UNSUB_PRODUCER:
             #     self.unsub_from_prod(addr[0], prod_id)
+            else:
+                raise Exception(f"Invalid packet type received by broker - {packet_type}")
 
     def publish_stream(self, prod_id: str, stream_id: str, prod_ip: str) -> None:
         topic_id = f"{prod_id}{stream_id}"
@@ -51,7 +59,8 @@ class Broker(ProtocolSocketBase):
         # new topic (since always new stream in this method)
         self.topic_info[topic_id] = {
             Labels.SUBS: set(),
-            Labels.FRAME_COUNT: 0
+            Labels.FRAME_COUNT: -1,
+            Labels.TEXT_COUNT: -1
         }
 
         # ensure that consumers subscribed directly to this producer
@@ -82,12 +91,14 @@ class Broker(ProtocolSocketBase):
         self.topic_info[topic_id][Labels.SUBS].add(cons_id)
 
         highest_published_frame = self.topic_info[topic_id][Labels.FRAME_COUNT]
+        highest_published_text = self.topic_info[topic_id][Labels.TEXT_COUNT]
 
         header = {
             HeaderData.PACKET_TYPE: PacketType.SUB_STREAM_ACK,
             HeaderData.PRODUCER_ID: prod_id,
             HeaderData.STREAM: stream_id,
-            HeaderData.FRAME: highest_published_frame # use this to set the max_frame for stream in consumer
+            HeaderData.FRAME: highest_published_frame, # use this to set the max_frame for stream in consumer
+            HeaderData.TEXT: highest_published_text
         }
         msg = bytearray(f"ACK: Broker registered sub to topic {topic_id}".encode())
         self._send(
@@ -98,27 +109,79 @@ class Broker(ProtocolSocketBase):
         print("Sub request completed - ", topic_id)
 
 
-    def send_frame_to_subs(
+    def send_content_to_subs(
             self, prod_id: str, stream_id: str,
-            frame_id: int, frame: bytes
+            content_id: int, content: bytes, is_frame: bool
     ) -> None:
         topic_id = f"{prod_id}{stream_id}"
-        print(f"Broker received frame {frame_id} for topic - {topic_id}")
+        print(f"Broker received {'frame' if is_frame else 'text'} {content_id} for topic - {topic_id}")
 
-        # update highest_frame in frame counts dict
+        header = {
+            HeaderData.PRODUCER_ID: prod_id,
+            HeaderData.STREAM: stream_id,
+        }
+
+        # check if already saw a future/the same frame or text
+        topic = self.topic_info[topic_id]
+        cur_highest = topic[Labels.FRAME_COUNT] if is_frame else topic[Labels.TEXT_COUNT]
+        if cur_highest >= content_id:
+            print(f"-- Seen a >= frame/text than {content_id}; not sending --")
+            return
+
+        if is_frame:
+            # update cur_highest frame count
+            self.topic_info[topic_id][Labels.FRAME_COUNT] = content_id
+
+            header[HeaderData.PACKET_TYPE] = PacketType.SEND_FRAME
+            header[HeaderData.FRAME] = content_id
+        else:            
+            # update cur_highest frame count
+            self.topic_info[topic_id][Labels.FRAME_COUNT] = content_id
+
+            header[HeaderData.PACKET_TYPE] = PacketType.SEND_TEXT
+            header[HeaderData.TEXT] = content_id
+        
 
         for consumer_ip in self.topic_info[topic_id][Labels.SUBS]:
-            # will need to use CONSUMER_PORT
-            pass
+            # send to all subbed consumers
+            self._send(header, consumer_ip, CONSUMER_PORT, content)
+            print(f"-- Sent {'frame' if is_frame else 'text'} {content_id}, topic {topic_id} to {consumer_ip} --")
+            # Don't need ACK because check comment under self.topic in __init__
 
+
+    def unsub_from_stream(
+            self, cons_ip: str, prod_id: str, stream_id: str
+    ) -> None:
+        topic_id = f"{prod_id}{stream_id}"
+
+        if topic_id not in self.topic_info:
+            print(f"-- Topic {topic_id} doesn't exist; can't unsubscribe--")
+            return
+
+        # remove from topic's subscriber set
+        self.topic_info[topic_id][Labels.SUBS].remove(cons_ip)
+
+        # send ACK?
+        header = {
+            HeaderData.PACKET_TYPE: PacketType.UNSUB_STREAM_ACK,
+            HeaderData.PRODUCER_ID: prod_id,
+            HeaderData.STREAM: stream_id,
+        }
+        msg = bytearray(f"ACK: Broker unsubbed from topic {topic_id}".encode())
+        self._send(
+            header_data=header, payload=msg, 
+            target_ip=cons_ip, target_port=CONSUMER_PORT
+        )
+        
+        print("-- Unsub request completed - ", topic_id, " --")
+
+
+
+
+    """VVV OPTIONAL VVV"""
     def sub_to_prod(self, cons_id: str, prod_id: str) -> None:
         pass
 
-    def unsub_from_stream(
-            self, cons_id: str, prod_id: str, stream_id: str
-    ) -> None:
-        topic_id = f"{prod_id}{stream_id}"
-
     def unsub_from_prod(self, cons_id: str, prod_id: str) -> None:
         pass 
-    
+    """^^^ OPTIONAL ^^^"""
