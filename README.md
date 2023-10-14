@@ -30,14 +30,20 @@ Byte 10-13 = text id (32 bit unsigned int)
 ```
 
 
-## Demo 2 IP Addrs / Port
+## Demo 2 IP Addresses
+```
+Producer0 = 172.17.0.2
+Producer1 = 172.17.0.6
+Consumer0 = 172.17.0.4
+Consumer1 = 172.17.0.5
+Broker    = 172.17.0.3
+```
 
-
-## Demo 1 IP Addrs / Port
+<!-- ## Demo 1 IP Addrs / Port
 
 - Port = 50000
 - Consumer = 172.20.0.2
 - Producer = 172.20.0.3
-- Broker = 172.20.0.4
+- Broker = 172.20.0.4 -->
 
 
