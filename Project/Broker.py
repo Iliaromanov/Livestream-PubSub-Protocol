@@ -125,7 +125,7 @@ class Broker(ProtocolSocketBase):
         topic = self.topic_info[topic_id]
         cur_highest = topic[Labels.FRAME_COUNT] if is_frame else topic[Labels.TEXT_COUNT]
         if cur_highest >= content_id:
-            print(f"-- Seen a >= frame/text than {content_id}; not sending --")
+            print(f"-- Seen a frame/text >= {content_id}; not sending --")
             return
 
         if is_frame:
@@ -135,15 +135,14 @@ class Broker(ProtocolSocketBase):
             header[HeaderData.PACKET_TYPE] = PacketType.SEND_FRAME
             header[HeaderData.FRAME] = content_id
         else:            
-            # update cur_highest frame count
-            self.topic_info[topic_id][Labels.FRAME_COUNT] = content_id
+            # update cur_highest text count
+            self.topic_info[topic_id][Labels.TEXT_COUNT] = content_id
 
             header[HeaderData.PACKET_TYPE] = PacketType.SEND_TEXT
             header[HeaderData.TEXT] = content_id
         
-
+        # send to all subbed consumers
         for consumer_ip in self.topic_info[topic_id][Labels.SUBS]:
-            # send to all subbed consumers
             self._send(header, consumer_ip, CONSUMER_PORT, content)
             print(f"-- Sent {'frame' if is_frame else 'text'} {content_id}, topic {topic_id} to {consumer_ip} --")
             # Don't need ACK because check comment under self.topic in __init__
@@ -161,7 +160,7 @@ class Broker(ProtocolSocketBase):
         # remove from topic's subscriber set
         self.topic_info[topic_id][Labels.SUBS].remove(cons_ip)
 
-        # send ACK?
+        # send ACK
         header = {
             HeaderData.PACKET_TYPE: PacketType.UNSUB_STREAM_ACK,
             HeaderData.PRODUCER_ID: prod_id,
