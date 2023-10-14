@@ -4,18 +4,17 @@ for live streaming content.
 
 ## Header (13 bytes)
 
-Byte 1 = packet type
-
-Bytes 2-4 = producer id
-
-Byte 5 = stream id
-
-Byte 6-9 = frame id (32 bit unsigned int)
-
+```
+Byte 1     = packet type
+Bytes 2-4  = producer id
+Byte 5     = stream id
+Byte 6-9   = frame id (32 bit unsigned int)
 Byte 10-13 = text id (32 bit unsigned int)
+```
 
 ## Packet Types
 
+```
 - ANNOUNCE_STREAM     = 0
 - ANNOUNCE_STREAM_ACK = 1
 - SEND_FRAME          = 2 # can be used for both prod send to broker, and broker send to cons
@@ -28,6 +27,7 @@ Byte 10-13 = text id (32 bit unsigned int)
 - SUB_PRODUCER_ACK    = 9
 - UNSUB_PRODUCER      = 10
 - UNSUB_PRODUCER_ACK  = 11
+```
 
 
 ## Demo 2 IP Addrs / Port
