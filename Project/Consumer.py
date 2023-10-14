@@ -15,6 +15,8 @@ class Consumer(ProtocolSocketBase):
         self.cons_id = local_ip
         self.subscription_frame_counts: Dict[str, List[int]] = {} # topic_id: [frame_count, text_count]
 
+        # to separate incoming frames from incoming ACKs
+        self._create_secondary_socket(CONSUMER_CONTENT_PORT)
         self.start_listening_for_content()
   
     def subscribe_stream(self, prod_id: str, stream_id: str) -> None:
@@ -30,9 +32,6 @@ class Consumer(ProtocolSocketBase):
         self._send(header, BROKER_IP, BROKER_PORT)
 
         print("Subscription packet sent - ", topic_id)
-
-        # needed so that the content listener doesn't receive ACK
-        self.stop_listening_for_content()
         
         # receive ACK and highest frame published from Broker
         data = self._receive()[0]
@@ -40,27 +39,23 @@ class Consumer(ProtocolSocketBase):
         assert(data[Labels.STREAM_ID] == int(stream_id))
 
         # set max frame and text counts
-        self.subscription_frame_counts[topic_id][0] = data[Labels.FRAME_ID]
-        self.subscription_frame_counts[topic_id][1] = data[Labels.TEXT_ID]
+        self.subscription_frame_counts[topic_id] = [
+            data[Labels.FRAME_ID], data[Labels.TEXT_ID]
+        ]
 
         print("-- Reply from Broker - ", data[Labels.BODY])
 
-        self.start_listening_for_content()
-
     def start_listening_for_content(self) -> None:
         # runs the self.listen_and_process_content in thread
-        self.content_listen = True
-        self.content_listen_thread = threading.Thread(target=self.listen_and_process_content)
+        self.content_listen_thread = threading.Thread(
+            target=self.listen_and_process_content
+        )
         self.content_listen_thread.start()
-
-    def stop_listening_for_content(self) -> None:
-        self.content_listen = False
-        self.content_listen_thread.join()
 
     def listen_and_process_content(self) -> None:
         # calls recvfrom and parses output into self.subscription_frame_counts
-        while self.content_listen:
-            data = self._receive()[0]
+        while True:
+            data = self._receive(use_secondary_socket=True)[0]
 
             packet_type = data[Labels.PACKET_TYPE]
             prod_id = data[Labels.PRODUCER_ID]
@@ -94,7 +89,7 @@ class Consumer(ProtocolSocketBase):
             else:
                 counts[1] = sent_count
 
-            print("-- Content text/frame received and processed: ")
+            print(f"-- Content text/frame {sent_count} received and processed: ")
             print(content)
             print("--")
 
@@ -114,18 +109,13 @@ class Consumer(ProtocolSocketBase):
 
         self._send(header, BROKER_IP, BROKER_PORT)
 
-        # Wait for ACK
-        # needed so that the content listener doesn't receive ACK
-        self.stop_listening_for_content()
-
         data = self._receive()[0]
         assert(data[Labels.PACKET_TYPE] == PacketType.UNSUB_STREAM_ACK.value)
         assert(data[Labels.STREAM_ID] == int(stream_id))
+        
+        del self.subscription_frame_counts[topic_id]
 
         print("-- Reply from Broker - ", data[Labels.BODY])
-
-        self.start_listening_for_content()
-
 
     def subscribe_producer(self, prod_id: str) -> None:
         pass

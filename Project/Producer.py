@@ -18,7 +18,7 @@ class Producer(ProtocolSocketBase):
     def publish_new_stream(self, stream_id: str) -> None:
         topic_id = f"{self.prod_id}{stream_id}"
         print(f"Publishing stream {stream_id}. (Topic {topic_id})")
-        self.streams[int(stream_id)] = 0 # start at frame 0
+        self.streams[int(stream_id)] = [0, 0] # start at frame 0, text 0
         
         # send stream to broker
         header = {

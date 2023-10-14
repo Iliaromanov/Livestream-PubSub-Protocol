@@ -38,8 +38,8 @@ class Broker(ProtocolSocketBase):
             elif packet_type == PacketType.SEND_FRAME.value:
                 self.send_content_to_subs(prod_id, stream_id, frame_id, body, True)
             elif packet_type == PacketType.SEND_TEXT.value:
-                self.send_content_to_subs(prod_id, stream_id, text_id, body, False)
-            elif packet_type == PacketType.UNSUB_STREAM:
+                self.send_content_to_subs(prod_id, stream_id, text_id, body.encode(), False)
+            elif packet_type == PacketType.UNSUB_STREAM.value:
                 self.unsub_from_stream(addr[0], prod_id, stream_id)
             # elif packet_type == PacketType.SUB_PRODUCER:
             #     self.sub_to_prod(addr[0], prod_id)
@@ -143,7 +143,7 @@ class Broker(ProtocolSocketBase):
         
         # send to all subbed consumers
         for consumer_ip in self.topic_info[topic_id][Labels.SUBS]:
-            self._send(header, consumer_ip, CONSUMER_PORT, content)
+            self._send(header, consumer_ip, CONSUMER_CONTENT_PORT, content)
             print(f"-- Sent {'frame' if is_frame else 'text'} {content_id}, topic {topic_id} to {consumer_ip} --")
             # Don't need ACK because check comment under self.topic in __init__
 

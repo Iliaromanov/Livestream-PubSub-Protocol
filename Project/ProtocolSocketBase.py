@@ -10,6 +10,12 @@ class ProtocolSocketBase:
         self.UDPSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         self.UDPSocket.bind((self._local_ip, self._local_port))
 
+    def _create_secondary_socket(self, port: str) -> None:
+        # creates and binds second UDPSocket using a differnt port
+        # needed for consumer to listen for subbed to stream content
+        self.UDPSocket_secondary = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.UDPSocket_secondary.bind((self._local_ip, port))
+
     def _create_header(
             self, packet_type: PacketType, prod_id: str, stream_id: int, frame_id: int, text_id: int
     ) -> bytearray:
@@ -25,7 +31,6 @@ class ProtocolSocketBase:
         header.extend(struct.pack('i', text_id))
 
         return header
-
          
     def _send(
         self, header_data: Dict[HeaderData, Any],
@@ -45,8 +50,13 @@ class ProtocolSocketBase:
 
         self.UDPSocket.sendto(data, (target_ip, target_port))
 
-    def _receive(self, buffer_size: int = BUFFER_SIZE) -> Tuple[Dict[str, Any], Tuple[str, int]]:
-        msg, addr = self.UDPSocket.recvfrom(buffer_size)
+    def _receive(
+        self, buffer_size: int = BUFFER_SIZE, use_secondary_socket: bool = False
+    ) -> Tuple[Dict[str, Any], Tuple[str, int]]:
+        if use_secondary_socket:
+            msg, addr = self.UDPSocket_secondary.recvfrom(buffer_size)
+        else:
+            msg, addr = self.UDPSocket.recvfrom(buffer_size)
         return (self._parse_packet(msg), addr)
 
     def _parse_packet(self, payload: bytes) -> Dict[str, Any]:
@@ -54,7 +64,7 @@ class ProtocolSocketBase:
         #  for everything else, we assume text was sent and decode it
         packet_type = payload[0]
         body = payload[13:]
-        if packet_type != PacketType.SEND_FRAME:
+        if packet_type != PacketType.SEND_FRAME.value:
             body = body.decode()
 
         return {

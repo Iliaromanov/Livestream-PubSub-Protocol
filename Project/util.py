@@ -2,12 +2,13 @@ from enum import Enum, auto
 import os
 
 # Constants
-BROKER_IP       = "broker"
-BROKER_PORT     = 50000
-PRODUCER_PORT   = 50000
-CONSUMER_PORT   = 50000
-DEFAULT_PROD_ID = '000000'
-BUFFER_SIZE     = 1024 # not sure if should change this or not
+BROKER_IP             = "broker"
+BROKER_PORT           = 50000
+PRODUCER_PORT         = 50000
+CONSUMER_PORT         = 50000
+CONSUMER_CONTENT_PORT = 50001
+DEFAULT_PROD_ID       = '000000'
+BUFFER_SIZE           = 1024 # not sure if should change this or not
 
 
 def file_to_bytes(path: str) -> bytearray:
