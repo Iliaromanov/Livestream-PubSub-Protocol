@@ -15,11 +15,13 @@ class Consumer(ProtocolSocketBase):
         self.cons_id = local_ip
         self.subscription_frame_counts: Dict[str, List[int]] = {} # topic_id: [frame_count, text_count]
 
+        self._set_socket_timeout(10) # timeout ACKs after 10 seconds
+
         # to separate incoming frames from incoming ACKs
         self._create_secondary_socket(CONSUMER_CONTENT_PORT)
         self.start_listening_for_content()
   
-    def subscribe_stream(self, prod_id: str, stream_id: str) -> None:
+    def subscribe_stream(self, prod_id: str, stream_id: str, retry: int = 1) -> None:
         topic_id = f"{prod_id}{stream_id}"
         print("Subscribing to topic - ", topic_id)
 
@@ -34,7 +36,15 @@ class Consumer(ProtocolSocketBase):
         print("Subscription packet sent - ", topic_id)
         
         # receive ACK and highest frame published from Broker
-        data = self._receive()[0]
+        try:
+            data = self._receive()[0]
+        except ProtocolSocketBase.TIMEOUT_EXCEPTION:
+            if retry == 1:
+                print("-- ACK timed out, retrying subscription --")
+                return self.subscribe_stream(prod_id, stream_id, 0)
+            print("-- Did not receive ACK from broker, ignoring subscription --")
+            return
+        
         assert(data[Labels.PACKET_TYPE] == PacketType.SUB_STREAM_ACK.value)
         assert(data[Labels.STREAM_ID] == int(stream_id))
 
@@ -55,6 +65,7 @@ class Consumer(ProtocolSocketBase):
     def listen_and_process_content(self) -> None:
         # calls recvfrom and parses output into self.subscription_frame_counts
         while True:
+            # timeout isn't possible on secondary socket.
             data = self._receive(use_secondary_socket=True)[0]
 
             packet_type = data[Labels.PACKET_TYPE]
@@ -95,7 +106,7 @@ class Consumer(ProtocolSocketBase):
 
             print(f"Consumer - {self.cons_id} - waiting on input ...\n> ")
 
-    def unsubscribe_stream(self, prod_id: str, stream_id: str) -> None:
+    def unsubscribe_stream(self, prod_id: str, stream_id: str, retry: int = 1) -> None:
         topic_id = f"{prod_id}{stream_id}"
         if topic_id not in self.subscription_frame_counts:
             print(f"-- Not currently subscribed to topic {topic_id}; can't unsub")
@@ -109,7 +120,15 @@ class Consumer(ProtocolSocketBase):
 
         self._send(header, BROKER_IP, BROKER_PORT)
 
-        data = self._receive()[0]
+        try:
+            data = self._receive()[0]
+        except ProtocolSocketBase.TIMEOUT_EXCEPTION:
+            if retry == 1:
+                print("-- ACK timed out, retrying unsub --")
+                return self.unsubscribe_stream(prod_id, stream_id, 0)
+            print("-- Did not receive ACK from broker; can't unsub --")
+            return
+        
         assert(data[Labels.PACKET_TYPE] == PacketType.UNSUB_STREAM_ACK.value)
         assert(data[Labels.STREAM_ID] == int(stream_id))
         

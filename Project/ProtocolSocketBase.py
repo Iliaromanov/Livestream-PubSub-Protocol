@@ -4,11 +4,18 @@ from util import PacketType, HeaderData, Labels, BUFFER_SIZE, DEFAULT_PROD_ID
 from typing import Dict, Any, Tuple
 
 class ProtocolSocketBase:
+    TIMEOUT_EXCEPTION = socket.timeout
+
     def __init__(self, ip: str, port: str) -> None:
         self._local_ip = ip
         self._local_port = port
         self.UDPSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         self.UDPSocket.bind((self._local_ip, self._local_port))
+
+
+    def _set_socket_timeout(self, time: int) -> None:
+        # time in seconds
+        self.UDPSocket.settimeout(time)
 
     def _create_secondary_socket(self, port: str) -> None:
         # creates and binds second UDPSocket using a differnt port
@@ -31,7 +38,7 @@ class ProtocolSocketBase:
         header.extend(struct.pack('i', text_id))
 
         return header
-         
+    
     def _send(
         self, header_data: Dict[HeaderData, Any],
         target_ip: str, target_port: str, payload: bytearray = bytearray()

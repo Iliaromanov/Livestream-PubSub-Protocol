@@ -20,7 +20,10 @@ class Broker(ProtocolSocketBase):
     def listen(self, buffer_size: int = BUFFER_SIZE) -> None:
         while True:
             print("Broker listening for incoming traffic ...")
-            result, addr = self._receive(buffer_size)
+            try:
+                result, addr = self._receive(buffer_size)
+            except ProtocolSocketBase.TIMEOUT_EXCEPTION:
+                continue
 
             print("Broker received packet from - ", addr)
 

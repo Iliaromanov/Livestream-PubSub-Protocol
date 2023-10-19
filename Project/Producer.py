@@ -14,8 +14,10 @@ class Producer(ProtocolSocketBase):
         super().__init__(local_ip, PRODUCER_PORT)
         self.prod_id = os.urandom(3).hex() # random 3 byte string
         self.streams: Dict[int, List[int]] = {} # stream_id: [cur_frame_count, cur_text_count]
+
+        self._set_socket_timeout(5) # timeout ACK after 10 seconds
     
-    def publish_new_stream(self, stream_id: str) -> None:
+    def publish_new_stream(self, stream_id: str, retry: int = 1) -> None:
         topic_id = f"{self.prod_id}{stream_id}"
         print(f"Publishing stream {stream_id}. (Topic {topic_id})")
         self.streams[int(stream_id)] = [0, 0] # start at frame 0, text 0
@@ -31,7 +33,15 @@ class Producer(ProtocolSocketBase):
         print("Publish packet sent - ", topic_id)
 
         # Receive ACK
-        data = self._receive()[0]
+        try:
+            data = self._receive()[0]
+        except ProtocolSocketBase.TIMEOUT_EXCEPTION:
+            if retry == 1:
+                print("-- ACK for publish timed out; retrying --")
+                return self.publish_new_stream(stream_id, 0)
+            print("-- Did not receive ACK; publish content failed --")
+            return
+        
         assert(data[Labels.PACKET_TYPE] == PacketType.ANNOUNCE_STREAM_ACK.value)
         assert(data[Labels.PRODUCER_ID] == self.prod_id)
         print("Reply from Broker - ", data[Labels.BODY])
