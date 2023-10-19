@@ -44,10 +44,10 @@ class Broker(ProtocolSocketBase):
                 self.send_content_to_subs(prod_id, stream_id, text_id, body.encode(), False)
             elif packet_type == PacketType.UNSUB_STREAM.value:
                 self.unsub_from_stream(addr[0], prod_id, stream_id)
-            # elif packet_type == PacketType.SUB_PRODUCER:
-            #     self.sub_to_prod(addr[0], prod_id)
-            # elif packet_type == PacketType.UNSUB_PRODUCER:
-            #     self.unsub_from_prod(addr[0], prod_id)
+            elif packet_type == PacketType.SUB_PRODUCER:
+                self.sub_to_prod(addr[0], prod_id)
+            elif packet_type == PacketType.UNSUB_PRODUCER:
+                self.unsub_from_prod(addr[0], prod_id)
             else:
                 raise Exception(f"Invalid packet type received by broker - {packet_type}")
 
@@ -89,7 +89,7 @@ class Broker(ProtocolSocketBase):
         print(f"Sub request from '{cons_id}' to producer '{prod_id}', stream '{stream_id}")
         topic_id = f"{prod_id}{stream_id}"
         if topic_id not in self.topic_info:
-            print(f"WARNING: TOPIC {topic_id} DOES NOT EXIST. SUB REQUEST FAIL.")
+            print(f"-- TOPIC {topic_id} DOES NOT EXIST. SUB REQUEST FAIL.")
 
         self.topic_info[topic_id][Labels.SUBS].add(cons_id)
 
@@ -178,12 +178,56 @@ class Broker(ProtocolSocketBase):
         print("-- Unsub request completed - ", topic_id, " --")
 
 
-
-
-    """VVV OPTIONAL VVV"""
     def sub_to_prod(self, cons_id: str, prod_id: str) -> None:
-        pass
+        print(f"Sub request from '{cons_id}' to producer '{prod_id}'")
+        if prod_id not in self.producer_subs:
+            print(f"-- PRODUCER {prod_id} DOES NOT EXIST. SUB REQUEST FAIL.")
 
-    def unsub_from_prod(self, cons_id: str, prod_id: str) -> None:
-        pass 
-    """^^^ OPTIONAL ^^^"""
+        # format for entry: "topic_id,highest_published_frame,highest_published_text"
+        topic_published_counts = []
+
+        for topic_id, counts in self.topic_info.items():
+            if topic_id.startswith(prod_id):
+                topic_published_counts.append(
+                    f"{topic_id},{counts[Labels.FRAME_COUNT]},{counts[Labels.TEXT_COUNT]}"
+                )
+                self.topic_info[topic_id][Labels.SUBS].add(cons_id)
+
+        header = {
+            HeaderData.PACKET_TYPE: PacketType.SUB_PRODUCER_ACK,
+            HeaderData.PRODUCER_ID: prod_id,
+        }
+        # ';' separated topic_published_counts: 
+        msg = bytearray(f"ACK;{';'.join(topic_published_counts)}".encode())
+        self._send(
+            header_data=header, payload=msg, 
+            target_ip=cons_id, target_port=CONSUMER_PORT
+        )
+        
+        print("Sub request completed - ", topic_id)
+
+    def unsub_from_prod(self, cons_ip: str, prod_id: str) -> None:
+        if prod_id not in self.producer_subs:
+            print(f"-- Producer {prod_id} doesn't exist; can't unsubscribe--")
+            return
+
+        # remove from topic's subscriber set
+        for topic_id in self.topic_info.keys():
+            if topic_id.startswith(prod_id):
+                self.topic_info[topic_id][Labels.SUBS].remove(cons_ip)
+
+        # remove from prod subs
+        self.producer_subs[prod_id].remove(cons_ip)
+
+        # send ACK
+        header = {
+            HeaderData.PACKET_TYPE: PacketType.UNSUB_PRODUCER_ACK,
+            HeaderData.PRODUCER_ID: prod_id,
+        }
+        msg = bytearray(f"ACK: Broker unsubbed from producer {prod_id}".encode())
+        self._send(
+            header_data=header, payload=msg, 
+            target_ip=cons_ip, target_port=CONSUMER_PORT
+        )
+        
+        print("-- Unsub request completed - ", prod_id, " --")
