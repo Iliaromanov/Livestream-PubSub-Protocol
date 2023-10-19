@@ -10,6 +10,7 @@ def main():
     print(f"- {Commands.EXIT.value} - end program")
 
     while True:
+        print("-" * 10)
         cmd = input(f"Consumer - {cons.cons_id} - waiting on input ...\n> ").split()
 
         if cmd[0] == Commands.SUB.value:

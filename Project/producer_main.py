@@ -11,6 +11,7 @@ def main():
     print("- exit - end program")
     
     while True:
+        print("-" * 10)
         cmd = input(f"Producer - {prod.prod_id} - waiting on input ...\n> ").split()
 
         if cmd[0] == Commands.PUB.value:

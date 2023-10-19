@@ -19,6 +19,7 @@ class Broker(ProtocolSocketBase):
 
     def listen(self, buffer_size: int = BUFFER_SIZE) -> None:
         while True:
+            print("-" * 10)
             print("Broker listening for incoming traffic ...")
             try:
                 result, addr = self._receive(buffer_size)
@@ -86,10 +87,11 @@ class Broker(ProtocolSocketBase):
         print("Publish finished - ", topic_id)
 
     def sub_to_stream(self, cons_id: str, prod_id: str, stream_id: str) -> None:
-        print(f"Sub request from '{cons_id}' to producer '{prod_id}', stream '{stream_id}")
+        print(f"-- Sub request from '{cons_id}' to producer '{prod_id}', stream '{stream_id}")
         topic_id = f"{prod_id}{stream_id}"
         if topic_id not in self.topic_info:
             print(f"-- TOPIC {topic_id} DOES NOT EXIST. SUB REQUEST FAIL.")
+            return
 
         self.topic_info[topic_id][Labels.SUBS].add(cons_id)
 
@@ -179,9 +181,12 @@ class Broker(ProtocolSocketBase):
 
 
     def sub_to_prod(self, cons_id: str, prod_id: str) -> None:
-        print(f"Sub request from '{cons_id}' to producer '{prod_id}'")
+        print(f"-- Sub request from '{cons_id}' to producer '{prod_id}'")
         if prod_id not in self.producer_subs:
             print(f"-- PRODUCER {prod_id} DOES NOT EXIST. SUB REQUEST FAIL.")
+            return 
+        
+        self.producer_subs[prod_id].add(cons_id)
 
         # format for entry: "topic_id,highest_published_frame,highest_published_text"
         topic_published_counts = []
@@ -204,7 +209,7 @@ class Broker(ProtocolSocketBase):
             target_ip=cons_id, target_port=CONSUMER_PORT
         )
         
-        print("Sub request completed - ", topic_id)
+        print("-- Sub request completed - ", prod_id)
 
     def unsub_from_prod(self, cons_ip: str, prod_id: str) -> None:
         if prod_id not in self.producer_subs:

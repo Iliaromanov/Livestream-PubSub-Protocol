@@ -104,6 +104,7 @@ class Consumer(ProtocolSocketBase):
             print(content)
             print("--")
 
+            print("-" * 10)
             print(f"Consumer - {self.cons_id} - waiting on input ...\n> ")
 
     def unsubscribe_stream(self, prod_id: str, stream_id: str, retry: int = 1) -> None:
@@ -167,7 +168,7 @@ class Consumer(ProtocolSocketBase):
             topic_id, frame_count, text_count = topic.split(",")
             # set max frame and text counts
             self.subscription_frame_counts[topic_id] = [
-                frame_count, text_count
+                int(frame_count), int(text_count)
             ]
 
         print("-- Reply from Broker - ", data[Labels.BODY])
@@ -192,7 +193,8 @@ class Consumer(ProtocolSocketBase):
         assert(data[Labels.PACKET_TYPE] == PacketType.UNSUB_PRODUCER_ACK.value)
         assert(data[Labels.PRODUCER_ID] == prod_id)
         
-        for topic_id in self.subscription_frame_counts.keys():
+        cur_topics = list(self.subscription_frame_counts.keys())
+        for topic_id in cur_topics:
             del self.subscription_frame_counts[topic_id]
 
         print("-- Reply from Broker - ", data[Labels.BODY])
