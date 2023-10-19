@@ -136,11 +136,64 @@ class Consumer(ProtocolSocketBase):
 
         print("-- Reply from Broker - ", data[Labels.BODY])
 
-    def subscribe_producer(self, prod_id: str) -> None:
-        pass
+    def subscribe_producer(self, prod_id: str, retry: int = 1) -> None:
+        print("Subscribing to producer - ", prod_id)
 
-    def unsubscribe_producer(self, prod_id: str) -> None:
-        pass
+        # send sub packet to broker
+        header = {
+            HeaderData.PACKET_TYPE: PacketType.SUB_PRODUCER,
+            HeaderData.PRODUCER_ID: prod_id,
+        }
+        self._send(header, BROKER_IP, BROKER_PORT)
 
+        print("Subscription packet sent - ", prod_id)
+        
+        # receive ACK and highest frame published from Broker
+        try:
+            data = self._receive()[0]
+        except ProtocolSocketBase.TIMEOUT_EXCEPTION:
+            if retry == 1:
+                print("-- ACK timed out, retrying subscription --")
+                return self.subscribe_producer(prod_id, 0)
+            print("-- Did not receive ACK from broker, ignoring subscription --")
+            return
+        
+        assert(data[Labels.PACKET_TYPE] == PacketType.SUB_PRODUCER_ACK.value)
+        assert(data[Labels.PRODUCER_ID] == prod_id)
 
+        response_topic_counts = data[Labels.BODY].split(";")
+        assert(response_topic_counts[0] == "ACK")
+        for topic in response_topic_counts[1:]:
+            topic_id, frame_count, text_count = topic.split(",")
+            # set max frame and text counts
+            self.subscription_frame_counts[topic_id] = [
+                frame_count, text_count
+            ]
+
+        print("-- Reply from Broker - ", data[Labels.BODY])
+
+    def unsubscribe_producer(self, prod_id: str, retry: int = 1) -> None:
+        header = {
+            HeaderData.PACKET_TYPE: PacketType.UNSUB_PRODUCER,
+            HeaderData.PRODUCER_ID: prod_id,
+        }
+
+        self._send(header, BROKER_IP, BROKER_PORT)
+
+        try:
+            data = self._receive()[0]
+        except ProtocolSocketBase.TIMEOUT_EXCEPTION:
+            if retry == 1:
+                print("-- ACK timed out, retrying unsub --")
+                return self.unsubscribe_producer(prod_id, 0)
+            print("-- Did not receive ACK from broker; can't unsub --")
+            return
+        
+        assert(data[Labels.PACKET_TYPE] == PacketType.UNSUB_PRODUCER_ACK.value)
+        assert(data[Labels.PRODUCER_ID] == prod_id)
+        
+        for topic_id in self.subscription_frame_counts.keys():
+            del self.subscription_frame_counts[topic_id]
+
+        print("-- Reply from Broker - ", data[Labels.BODY])
         
