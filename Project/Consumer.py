@@ -15,7 +15,7 @@ class Consumer(ProtocolSocketBase):
         self.cons_id = local_ip
         self.subscription_frame_counts: Dict[str, List[int]] = {} # topic_id: [frame_count, text_count]
 
-        self._set_socket_timeout(10) # timeout ACKs after 10 seconds
+        self._set_socket_timeout(5) # timeout ACKs after 5 seconds
 
         # to separate incoming frames from incoming ACKs
         self._create_secondary_socket(CONSUMER_CONTENT_PORT)
