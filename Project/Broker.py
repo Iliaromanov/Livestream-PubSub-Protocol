@@ -44,9 +44,9 @@ class Broker(ProtocolSocketBase):
                 self.send_content_to_subs(prod_id, stream_id, text_id, body.encode(), False)
             elif packet_type == PacketType.UNSUB_STREAM.value:
                 self.unsub_from_stream(addr[0], prod_id, stream_id)
-            elif packet_type == PacketType.SUB_PRODUCER:
+            elif packet_type == PacketType.SUB_PRODUCER.value:
                 self.sub_to_prod(addr[0], prod_id)
-            elif packet_type == PacketType.UNSUB_PRODUCER:
+            elif packet_type == PacketType.UNSUB_PRODUCER.value:
                 self.unsub_from_prod(addr[0], prod_id)
             else:
                 raise Exception(f"Invalid packet type received by broker - {packet_type}")
